@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PukPik</title>
+    <title>แอปบันทึกรายรับรายจ่าย</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -17,8 +17,8 @@
     <style>
         /* Custom Styles */
         :root {
-            --primary-color: #d1f7e0; /* Light Green */
-            --secondary-color: #fce6e8; /* Light Pink */
+            --primary-color: #fce6e8; /* Light Pink */
+            --secondary-color: #d1f7e0; /* Light Green */
             --text-color: #333;
             --success-color: #28a745;
             --danger-color: #dc3545;
@@ -48,7 +48,7 @@
 
         .nav-pills .nav-link.active {
             background-color: var(--primary-color) !important;
-            color: var(--success-color) !important;
+            color: var(--danger-color) !important;
             font-weight: 500;
         }
 
@@ -91,8 +91,7 @@
         .balance-card { background-color: #007bff; }
         .today-expense-card { background-color: var(--warning-color); }
 
-
-        .transaction-form-card {
+        .form-card, .chart-card {
             background-color: white;
             padding: 2rem;
             border-radius: 15px;
@@ -119,7 +118,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 1050; /* Higher than modals */
+            z-index: 1050;
         }
         
         .modal-content {
@@ -222,35 +221,46 @@
             </div>
         </section>
 
-        <!-- Transaction Form -->
-        <section class="transaction-form-card">
-            <h4 class="mb-3">เพิ่มรายการใหม่</h4>
-            <form id="transaction-form">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="description" class="form-label">คำอธิบาย</label>
-                        <input type="text" id="description" class="form-control" placeholder="เช่น ค่ากาแฟ, เงินเดือน" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="amount" class="form-label">จำนวนเงิน</label>
-                        <input type="number" id="amount" class="form-control" placeholder="0.00" required step="0.01">
-                    </div>
-                    <div class="col-12">
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="type" id="type-income" value="income" checked>
-                            <label class="form-check-label" for="type-income">รายรับ</label>
+        <div class="row">
+            <div class="col-lg-6">
+                <!-- Transaction Form -->
+                <section class="form-card">
+                    <h4 class="mb-3">เพิ่มรายการใหม่</h4>
+                    <form id="transaction-form">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="description" class="form-label">คำอธิบาย</label>
+                                <input type="text" id="description" class="form-control" placeholder="เช่น ค่ากาแฟ, เงินเดือน" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="amount" class="form-label">จำนวนเงิน</label>
+                                <input type="number" id="amount" class="form-control" placeholder="0.00" required step="0.01">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="type" id="type-income" value="income" checked>
+                                    <label class="form-check-label" for="type-income">รายรับ</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="type" id="type-expense" value="expense">
+                                    <label class="form-check-label" for="type-expense">รายจ่าย</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary-custom w-100">เพิ่มรายการ</button>
+                            </div>
                         </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="type" id="type-expense" value="expense">
-                            <label class="form-check-label" for="type-expense">รายจ่าย</label>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary-custom w-100">เพิ่มรายการ</button>
-                    </div>
-                </div>
-            </form>
-        </section>
+                    </form>
+                </section>
+            </div>
+            <div class="col-lg-6">
+                <!-- Expense Chart -->
+                <section class="chart-card">
+                    <h4 class="mb-3">สัดส่วนรายจ่าย</h4>
+                    <canvas id="expense-chart"></canvas>
+                </section>
+            </div>
+        </div>
 
         <!-- Transaction List -->
         <section>
@@ -309,10 +319,11 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Firebase SDKs -->
     <script type="module">
-        // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import {
             getAuth,
@@ -330,29 +341,6 @@
             update
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        // --- [!!!] ข้อสำคัญ: การตั้งค่า FIREBASE [!!!] ---
-        // ข้อผิดพลาด "PERMISSION_DENIED" เกิดจากกฎความปลอดภัยของ Realtime Database
-        // คุณต้องเข้าไปอัปเดตกฎใน Firebase Console เพื่อให้แอปทำงานได้
-        // 
-        // 1. ไปที่โปรเจกต์ Firebase ของคุณ: app-pukpik
-        // 2. ไปที่เมนู Build -> Realtime Database -> แท็บ Rules
-        // 3. ลบกฎเดิมทิ้ง และใส่กฎใหม่นี้เข้าไปแทนที่:
-        //
-        // {
-        //   "rules": {
-        //     "transactions": {
-        //       "$uid": {
-        //         ".read": "auth != null && auth.uid == $uid",
-        //         ".write": "auth != null && auth.uid == $uid"
-        //       }
-        //     }
-        //   }
-        // }
-        //
-        // กฎนี้จะทำให้ผู้ใช้ที่ล็อกอินแล้วเท่านั้น ที่สามารถอ่านและเขียนข้อมูลของตัวเองได้
-        // -------------------------------------------------------------
-
-        // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCa67pA2e6nFYsUBwTFBNOw6W-ldNkUouM",
             authDomain: "app-pukpik.firebaseapp.com",
@@ -380,52 +368,46 @@
         const userEmailDisplay = document.getElementById('user-email');
         const transactionForm = document.getElementById('transaction-form');
         const transactionList = document.getElementById('transaction-list');
+        const chartCanvas = document.getElementById('expense-chart');
 
-        // Summary elements
         const totalIncomeEl = document.getElementById('total-income');
         const totalExpenseEl = document.getElementById('total-expense');
         const balanceEl = document.getElementById('balance');
         const todayExpenseEl = document.getElementById('today-expense');
         
-        // Filter elements
         const filterGroup = document.getElementById('filter-group');
-        
-        // Edit Modal
         const editModal = new bootstrap.Modal(document.getElementById('edit-modal'));
         const editForm = document.getElementById('edit-form');
 
         let currentUid = null;
         let transactionListener = null;
-        let allTransactions = []; // To store a copy of all transactions
+        let allTransactions = [];
+        let expenseChartInstance = null; // To hold the chart instance
 
         // --- Authentication ---
         onAuthStateChanged(auth, (user) => {
             loadingView.style.display = 'none';
             if (user) {
-                // User is signed in
                 currentUid = user.uid;
                 userEmailDisplay.textContent = user.email;
                 authContainer.style.display = 'none';
                 appContainer.style.display = 'block';
                 listenForTransactions();
             } else {
-                // User is signed out
                 currentUid = null;
                 appContainer.style.display = 'none';
                 authContainer.style.display = 'block';
-                transactionList.innerHTML = ''; // Clear list on logout
-                if (transactionListener) transactionListener(); // Detach listener
+                transactionList.innerHTML = '';
+                if (transactionListener) transactionListener();
             }
         });
 
-        // Register
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('register-email').value;
             const password = document.getElementById('register-password').value;
-
             createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
+                .then(() => {
                     registerForm.reset();
                     authError.style.display = 'none';
                 })
@@ -435,14 +417,12 @@
                 });
         });
 
-        // Login
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-
             signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
+                .then(() => {
                     loginForm.reset();
                     authError.style.display = 'none';
                 })
@@ -452,7 +432,6 @@
                 });
         });
 
-        // Logout
         logoutBtn.addEventListener('click', () => {
             signOut(auth).catch((error) => console.error('Logout error:', error));
         });
@@ -469,14 +448,11 @@
         }
 
         // --- Realtime Database (CRUD) ---
-
-        // CREATE
         transactionForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const description = document.getElementById('description').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const type = document.querySelector('input[name="type"]:checked').value;
-
             if (description && amount > 0 && currentUid) {
                 const transactionsRef = ref(db, 'transactions/' + currentUid);
                 push(transactionsRef, {
@@ -490,7 +466,6 @@
             }
         });
 
-        // READ
         function listenForTransactions() {
             if (!currentUid) return;
             const transactionsRef = ref(db, 'transactions/' + currentUid);
@@ -500,12 +475,10 @@
                 let totalExpense = 0;
                 let todayExpense = 0;
                 const todayStr = new Date().toISOString().slice(0, 10);
-
                 allTransactions = [];
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     const transactionsArray = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-                    
                     transactionsArray.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
                     allTransactions = transactionsArray;
 
@@ -522,6 +495,7 @@
                 }
                 updateSummary(totalIncome, totalExpense, todayExpense);
                 renderFilteredTransactions();
+                updateExpenseChart(allTransactions); // Update chart
             });
         }
         
@@ -529,18 +503,14 @@
             transactionList.innerHTML = '';
             const filterValue = document.querySelector('input[name="filter-options"]:checked').value;
             const todayStr = new Date().toISOString().slice(0, 10);
-
             const transactionsToRender = allTransactions.filter(item => {
-                if (filterValue === 'today') {
-                    return item.createdAt.slice(0, 10) === todayStr;
-                }
-                return true; // 'all' filter
+                if (filterValue === 'today') return item.createdAt.slice(0, 10) === todayStr;
+                return true;
             });
-
             if (transactionsToRender.length === 0) {
                 transactionList.innerHTML = '<p class="text-center text-muted mt-3">ไม่พบรายการ</p>';
             } else {
-                transactionsToRender.forEach(item => renderTransactionItem(item));
+                transactionsToRender.forEach(renderTransactionItem);
             }
         }
         
@@ -563,8 +533,7 @@
                         <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${item.id}"><i class="bi bi-pencil"></i></button>
                         <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${item.id}"><i class="bi bi-trash"></i></button>
                     </div>
-                </div>
-            `;
+                </div>`;
             transactionList.appendChild(li);
         }
         
@@ -574,14 +543,72 @@
              balanceEl.textContent = (income - expense).toLocaleString('th-TH', { style: 'currency', currency: 'THB' });
              todayExpenseEl.textContent = todayExpense.toLocaleString('th-TH', { style: 'currency', currency: 'THB' });
         }
+
+        function updateExpenseChart(transactions) {
+            if (expenseChartInstance) {
+                expenseChartInstance.destroy();
+            }
+            
+            const expenses = transactions.filter(t => t.type === 'expense');
+            const expenseData = expenses.reduce((acc, curr) => {
+                const key = curr.description.trim();
+                acc[key] = (acc[key] || 0) + curr.amount;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(expenseData);
+            const data = Object.values(expenseData);
+            
+            if (labels.length === 0) {
+                // If no expense data, don't draw chart
+                chartCanvas.style.display = 'none';
+                return;
+            }
+            chartCanvas.style.display = 'block';
+
+            const ctx = chartCanvas.getContext('2d');
+            expenseChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'รายจ่าย',
+                        data: data,
+                        backgroundColor: [
+                            '#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40',
+                            '#e85e88', '#5e9ee8', '#e8c15e', '#66d3d3', '#ad85ff', '#ffb266'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
         
-        // UPDATE & DELETE
         transactionList.addEventListener('click', (e) => {
             const target = e.target.closest('button');
             if (!target) return;
-            
             const id = target.dataset.id;
-            
             if (target.classList.contains('delete-btn')) {
                 if (confirm('คุณแน่ใจว่าต้องการลบรายการนี้?')) {
                     remove(ref(db, `transactions/${currentUid}/${id}`)).catch(err => console.error("Delete failed: ", err));
@@ -604,7 +631,6 @@
              const description = document.getElementById('edit-description').value;
              const amount = parseFloat(document.getElementById('edit-amount').value);
              const type = document.querySelector('input[name="edit-type"]:checked').value;
-             
              if (id && description && amount > 0) {
                  update(ref(db, `transactions/${currentUid}/${id}`), {
                      description, amount, type
@@ -613,7 +639,6 @@
                  }).catch(err => console.error("Update failed: ", err));
              }
         });
-
     </script>
 </body>
 </html>
